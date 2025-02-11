@@ -213,6 +213,30 @@ func (g *GoWSDL) unmarshal() error {
 	}
 	g.rawWSDL = data
 
+	for _, imp := range g.wsdl.Imports {
+		if imp.Location != "" {
+			loc, err := g.loc.Parse(imp.Location)
+			if err != nil {
+				return err
+			}
+			imp.Location = loc.String()
+
+		data, err := g.fetchFile(loc)
+		imWsdl := new(WSDL)
+		err = xml.Unmarshal(data, imWsdl)
+		if err != nil {
+			return err
+		}
+		// merge the imported WSDL into the main WSDL
+		g.wsdl.Types.Schemas = append(g.wsdl.Types.Schemas, imWsdl.Types.Schemas...)
+		g.wsdl.Messages = append(g.wsdl.Messages, imWsdl.Messages...)
+		g.wsdl.PortTypes = append(g.wsdl.PortTypes, imWsdl.PortTypes...)
+		g.wsdl.Binding = append(g.wsdl.Binding, imWsdl.Binding...)
+		g.wsdl.Service = append(g.wsdl.Service, imWsdl.Service...)
+
+		}
+	}
+
 	for _, schema := range g.wsdl.Types.Schemas {
 		err = g.resolveXSDExternals(schema, g.loc)
 		if err != nil {

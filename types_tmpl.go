@@ -150,7 +150,7 @@ var typesTmpl = `
 				{{else}}
 					type {{$typeName}} interface{}
 				{{end}}
-			
+
 				{{if .Restriction.Enumeration}}
 				const (
 					{{with .Restriction}}
@@ -204,6 +204,8 @@ var typesTmpl = `
 				{{$type := findNameByType .Name}}
 				{{if ne .Name $type}}
 					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$type}}\"`" + `
+				{{else}}
+					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{.Name}}\"`" + `
 				{{end}}
 
 				{{if ne .ComplexContent.Extension.Base ""}}
