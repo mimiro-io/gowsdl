@@ -326,6 +326,9 @@ func (g *GoWSDL) genTypes() ([]byte, error) {
 		"removePointerFromType":    removePointerFromType,
 		"setNS":                    g.setNS,
 		"getNS":                    g.getNS,
+		"notHasSuffix": func(s, suffix string) bool {
+				return !strings.HasSuffix(s, suffix)
+		},
 	}
 
 	data := new(bytes.Buffer)

@@ -193,6 +193,12 @@ var typesTmpl = `
 			{{end}}
 		{{end}}
 	{{end}}
+	{{ $validNamepace := false }}
+	{{ range $key, $value := .Xmlns }}
+		{{ if eq $value $targetNamespace }}
+			{{ $validNamepace = true }}
+		{{ end }}
+	{{ end }}
 
 	{{range .ComplexTypes}}
 		{{/* ComplexTypeGlobal */}}
@@ -202,10 +208,8 @@ var typesTmpl = `
 		{{else}}
 			type {{$typeName}} struct {
 				{{$type := findNameByType .Name}}
-				{{if ne .Name $type}}
+				{{if and (notHasSuffix $type "Response") ($validNamepace)}}
 					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$type}}\"`" + `
-				{{else}}
-					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{.Name}}\"`" + `
 				{{end}}
 
 				{{if ne .ComplexContent.Extension.Base ""}}
@@ -221,6 +225,81 @@ var typesTmpl = `
 					{{template "Attributes" .Attributes}}
 				{{end}}
 			}
+
+{{if notHasSuffix $type "Response"}}
+func (r {{$typeName}}) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	v := reflect.ValueOf(r)
+	t := reflect.TypeOf(r)
+	if start.Name.Space == "" {
+		parentXmlNameField, _ := t.FieldByName("XMLName")
+		parentTypeTag := parentXmlNameField.Tag.Get("xml")
+		if parentTypeTag != "" {
+			tokens := strings.Split(parentTypeTag, " ")
+			//start.Name.Space = tokens[0]
+			if len(tokens) > 1 {
+				start.Name.Local = "ns2:" + tokens[1]
+			}
+			start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "xmlns:ns2"}, Value: tokens[0]})
+		}
+	} else {
+		start.Name.Space = ""
+	}
+	err := e.EncodeToken(start)
+	if err != nil {
+		return err
+	}
+	fields := reflect.TypeOf(r).NumField()
+	for i := 0; i < fields; i++ {
+		f := reflect.TypeOf(r).Field(i)
+		if f.Name != "XMLName" && !f.Anonymous {
+			fieldRef := v.FieldByName(f.Name)
+			ft := fieldRef.Type()
+			n := xml.Name{}
+			if ft.Kind() == reflect.Ptr {
+				elm :=  ft.Elem()
+				if elm.Kind() == reflect.Ptr {
+					xmlNameType, _ := elm.FieldByName("XMLName")
+					typeTag := xmlNameType.Tag.Get("xml")
+					if typeTag != "" {
+						tokens := strings.Split(typeTag, " ")
+						n.Space = tokens[0]
+						if len(tokens) > 1 {
+							n.Local = tokens[1]
+						}
+					}
+				}
+			}
+			//
+			xmlTag := f.Tag.Get("xml")
+			omitEmpty := false
+			if xmlTag != "" {
+				tokens := strings.Split(xmlTag, ",")
+				xmlTagName := tokens[0]
+				n.Local = xmlTagName
+				if len(start.Attr) > 0 {
+					n.Space = start.Attr[0].Value
+				}
+				if len(tokens) > 1 {
+					omitEmpty = tokens[1] == "omitempty"
+				}
+			}
+			if !omitEmpty || !reflect.ValueOf(r).Field(i).IsZero() {
+				err := e.EncodeElement(reflect.ValueOf(r).Field(i).Interface(), xml.StartElement{Name: n})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	err = e.EncodeToken(start.End())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+{{end}}
+
+
 		{{end}}
 	{{end}}
 {{end}}

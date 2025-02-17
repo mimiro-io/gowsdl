@@ -13,6 +13,8 @@ import (
 	"context"
 	"encoding/xml"
 	"time"
+	"reflect"
+	"strings"
 	"github.com/hooklift/gowsdl/soap"
 
 	{{/*range .Imports*/}}
