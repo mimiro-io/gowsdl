@@ -13,8 +13,9 @@ type SOAPBodyRequest struct {
 	XMLName xml.Name ` + "`" + `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"` + "`" + `
 	{{range .}}
 		{{range .Operations}}
-				{{$requestType := findType .Input.Message | replaceReservedWords | makePublic}} ` + `
-  				{{$requestType}} *{{$requestType}} ` + "`" + `xml:,omitempty` + "`" + `
+				{{$requestTag := findType .Input.Message | replaceReservedWords }}
+				{{$requestType := $requestTag | makePublic}} ` + `
+  				{{$requestType}} *{{$requestType}} ` + "`" + `xml:{{$requestTag}},omitempty` + "`" + `
 		{{end}}
 	{{end}}
 }
