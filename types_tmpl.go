@@ -209,7 +209,11 @@ var typesTmpl = `
 			type {{$typeName}} struct {
 				{{$type := findNameByType .Name}}
 				{{if and (notHasSuffix $type "Response") ($validNamepace)}}
-					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$type}}\"`" + `
+					{{if ne .Name $type}}
+						XMLName xml.Name ` + "`xml:\"{{$type}}\"`" + `
+					{{else}}	
+						XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$type}}\"`" + `
+					{{end}}	
 				{{end}}
 
 				{{if ne .ComplexContent.Extension.Base ""}}
