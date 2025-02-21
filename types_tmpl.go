@@ -211,9 +211,10 @@ var typesTmpl = `
 				{{if and (notHasSuffix $type "Response") ($validNamepace)}}
 					{{if ne .Name $type}}
 						XMLName xml.Name ` + "`xml:\"{{$type}}\"`" + `
-					{{else}}	
+					{{else if notHasSuffix $type "Request"}}
 						XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$type}}\"`" + `
-					{{end}}	
+					{{else}}
+					{{end}}
 				{{end}}
 
 				{{if ne .ComplexContent.Extension.Base ""}}
