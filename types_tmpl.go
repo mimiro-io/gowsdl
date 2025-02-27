@@ -257,45 +257,29 @@ func (r {{$typeName}}) MarshalXML(e *xml.Encoder, start xml.StartElement) error 
 	for i := 0; i < fields; i++ {
 		f := reflect.TypeOf(r).Field(i)
 		if f.Name != "XMLName" && !f.Anonymous {
-			fieldRef := v.FieldByName(f.Name)
-			ft := fieldRef.Type()
-			n := xml.Name{}
-			if ft.Kind() == reflect.Ptr {
-				elm :=  ft.Elem()
-				if elm.Kind() == reflect.Ptr {
-					xmlNameType, _ := elm.FieldByName("XMLName")
-					typeTag := xmlNameType.Tag.Get("xml")
-					if typeTag != "" {
-						tokens := strings.Split(typeTag, " ")
-						n.Space = tokens[0]
-						if len(tokens) > 1 {
-							n.Local = tokens[1]
-						}
+			f := reflect.TypeOf(r).Field(i)
+			if f.Name != "XMLName" && !f.Anonymous {
+				err2 := processField(e, start, v, f, i)
+				if err2 != nil {
+					return err2
+				}
+			}
+		}
+		if f.Anonymous {
+			anon := v.Field(i).Elem().Interface()
+			anonFields := reflect.TypeOf(anon).NumField()
+			for i2 := 0; i2 < anonFields; i2++ {
+				fAnon := reflect.TypeOf(anon).Field(i2)
+				if fAnon.Name != "XMLName" && !fAnon.Anonymous {
+					err2 := processField(e, start, reflect.ValueOf(anon), fAnon, i2)
+					if err2 != nil {
+						return err2
 					}
-				}
-			}
-			//
-			xmlTag := f.Tag.Get("xml")
-			omitEmpty := false
-			if xmlTag != "" {
-				tokens := strings.Split(xmlTag, ",")
-				xmlTagName := tokens[0]
-				n.Local = xmlTagName
-				if len(start.Attr) > 0 {
-					n.Space = start.Attr[0].Value
-				}
-				if len(tokens) > 1 {
-					omitEmpty = tokens[1] == "omitempty"
-				}
-			}
-			if !omitEmpty || !reflect.ValueOf(r).Field(i).IsZero() {
-				err := e.EncodeElement(reflect.ValueOf(r).Field(i).Interface(), xml.StartElement{Name: n})
-				if err != nil {
-					return err
 				}
 			}
 		}
 	}
+
 	err = e.EncodeToken(start.End())
 	if err != nil {
 		return err
@@ -308,4 +292,47 @@ func (r {{$typeName}}) MarshalXML(e *xml.Encoder, start xml.StartElement) error 
 		{{end}}
 	{{end}}
 {{end}}
+
+
+func processField(e *xml.Encoder, start xml.StartElement, v reflect.Value, f reflect.StructField, i int) error {
+	fieldRef := v.FieldByName(f.Name)
+	ft := fieldRef.Type()
+	n := xml.Name{}
+	if ft.Kind() == reflect.Ptr {
+		elm := ft.Elem()
+		if elm.Kind() == reflect.Ptr {
+			xmlNameType, _ := elm.FieldByName("XMLName")
+			typeTag := xmlNameType.Tag.Get("xml")
+			if typeTag != "" {
+				tokens := strings.Split(typeTag, " ")
+				n.Space = tokens[0]
+				if len(tokens) > 1 {
+					n.Local = tokens[1]
+				}
+			}
+		}
+	}
+	//
+	xmlTag := f.Tag.Get("xml")
+	omitEmpty := false
+	if xmlTag != "" {
+		tokens := strings.Split(xmlTag, ",")
+		xmlTagName := tokens[0]
+		n.Local = xmlTagName
+		if len(start.Attr) > 0 {
+			n.Space = start.Attr[0].Value
+		}
+		if len(tokens) > 1 {
+			omitEmpty = tokens[1] == "omitempty"
+		}
+	}
+	if !omitEmpty || !v.Field(i).IsZero() {
+		err := e.EncodeElement(v.Field(i).Interface(), xml.StartElement{Name: n})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 `
